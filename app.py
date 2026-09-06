@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 
 import pandas as pd
 import requests
@@ -9,15 +9,77 @@ import streamlit as st
 import psycopg
 from psycopg.rows import dict_row
 
+# 1. Page Configuration
 st.set_page_config(
     page_title="B.Tech Girl Students Scholarship Portal",
     page_icon="🎓",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-# =============================================================
-# Neon PostgreSQL configuration
-# =============================================================
+# 2. Custom CSS for UI Enhancement
+st.markdown(
+    """
+    <style>
+    /* Global Page Styling */
+    .stApp {
+        background-color: #F8FAFC;
+    }
+    
+    /* Header Container */
+    .header-container {
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .header-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.025em;
+    }
+    .header-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background-color: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* Card Badge */
+    .badge-open {
+        background-color: #DEF7EC;
+        color: #03543F;
+        font-weight: 600;
+        font-size: 0.8rem;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        display: inline-block;
+    }
+
+    /* Custom Form Styling */
+    div[data-testid="stForm"] {
+        background-color: #FFFFFF;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        padding: 1.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Database Configuration
 DATABASE_URL = st.secrets.get("DATABASE_URL", os.getenv("DATABASE_URL", ""))
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", ""))
 
@@ -27,7 +89,6 @@ if not DATABASE_URL:
 
 
 def get_conn():
-    # Neon connection strings normally contain sslmode=require.
     return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 
@@ -54,9 +115,6 @@ def execute(sql, params=(), returning=False):
         return result
 
 
-# =============================================================
-# Helpers
-# =============================================================
 def valid_mobile(v):
     return bool(re.fullmatch(r"[6-9]\d{9}", re.sub(r"\s+", "", v or "")))
 
@@ -82,8 +140,6 @@ def is_open(s):
 
 
 def get_scholarships(include_expired=False):
-    # Deadline is checked in SQL as well as Python. This makes the public
-    # scholarship list safe even if an admin forgets to deactivate a row.
     if include_expired:
         sql = """
             SELECT id, name, description, eligibility, documents, deadline,
@@ -139,124 +195,103 @@ def record_application(student_name, roll, branch, mobile, scholarship_id):
     )
 
 
-def fetch_webpage(url):
-    r = requests.get(
-        url,
-        timeout=20,
-        headers={"User-Agent": "ScholarshipPortalBot/1.0 (+admin verification)"},
-    )
-    r.raise_for_status()
-    return r.text, r.url
-
-
-def extract_page_text(html):
-    soup = BeautifulSoup(html, "html.parser")
-    for tag in soup(["script", "style", "noscript"]):
-        tag.decompose()
-    return re.sub(r"\s+", " ", soup.get_text(" ", strip=True))
-
-
-def collect_source_preview(url):
-    html, final_url = fetch_webpage(url)
-    text = extract_page_text(html)
-    return final_url, text[:12000]
-
-
-# =============================================================
-# Styling / Header
-# =============================================================
+# Header Banner
 st.markdown(
     """
-    <style>
-    .main-title {font-size: 2.3rem; font-weight: 800; margin-bottom: 0.2rem;}
-    .subtitle {font-size: 1.05rem; color: #666; margin-bottom: 1.5rem;}
-    </style>
+    <div class="header-container">
+        <div class="header-title">🎓 B.Tech Girl Students Scholarship Portal</div>
+        <div class="header-subtitle">Find verified scholarships, detailed eligibility, and direct application links in one place.</div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    '<div class="main-title">🎓 B.Tech Girl Students Scholarship Portal</div>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<div class="subtitle">Scholarship name • detailed eligibility • required documents • deadline • official link</div>',
-    unsafe_allow_html=True,
-)
-
+# Navigation Bar
 page = st.radio(
-    "Go to",
+    "Navigation",
     ["Scholarships", "My Application", "Admin Dashboard"],
     horizontal=True,
     label_visibility="collapsed",
 )
 
-# =============================================================
-# Student: scholarships
-# =============================================================
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Page: Scholarships
 if page == "Scholarships":
     rows = get_scholarships()
-    st.subheader(f"Open scholarships ({len(rows)})")
+
+    col_title, col_count = st.columns([4, 1])
+    with col_title:
+        st.markdown("## Available Opportunities")
+    with col_count:
+        st.markdown(
+            f"<div class='metric-card'><b>Active Programs:</b> {len(rows)}</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     if not rows:
         st.info("No open scholarships are currently available.")
     else:
-        table = []
-        for s in rows:
-            d = parse_deadline(s.get("deadline"))
-            table.append(
-                {
-                    "Scholarship Name": s["name"],
-                    "Eligibility": s.get("eligibility", ""),
-                    "Required Documents": s.get("documents", ""),
-                    "Last Date": d.strftime("%d-%m-%Y") if d else "See official notice",
-                    "Status": "OPEN" if is_open(s) else "CLOSED",
-                }
-            )
-        st.dataframe(
-            pd.DataFrame(table), use_container_width=True, hide_index=True, height=420
-        )
-
-        st.divider()
-        st.subheader("Apply")
         for s in rows:
             if not is_open(s):
                 continue
-            d = parse_deadline(s.get("deadline"))
-            with st.container(border=True):
-                st.markdown(f"### {s['name']}")
-                st.write(f"**Eligibility:** {s.get('eligibility', '')}")
-                st.write(f"**Required documents:** {s.get('documents', '')}")
-                st.write(
-                    f"**Last date:** {d.strftime('%d-%m-%Y') if d else 'See official notice'}"
-                )
-                st.caption(
-                    f"Source: {s.get('source_name') or s.get('source_url', '')} | "
-                    f"Last verified: {s.get('last_verified', 'Not recorded')}"
-                )
-                if st.button("Apply Now →", key=f"apply_{s['id']}", type="primary"):
-                    st.session_state["selected"] = s
 
+            d = parse_deadline(s.get("deadline"))
+            deadline_str = (
+                d.strftime("%d %b %Y") if d else "Official Notice"
+            )
+
+            with st.container():
+                with st.expander(f"✨ **{s['name']}** (Deadline: {deadline_str})", expanded=True):
+                    col_info, col_action = st.columns([3, 1])
+
+                    with col_info:
+                        st.markdown(f"**Eligibility:**\n{s.get('eligibility', 'N/A')}")
+                        st.markdown(f"**Required Documents:**\n{s.get('documents', 'N/A')}")
+                        st.caption(
+                            f"Verified Source: {s.get('source_name') or s.get('source_url', 'Official Website')} | "
+                            f"Last Verified: {s.get('last_verified', 'Recently')}"
+                        )
+
+                    with col_action:
+                        st.markdown(
+                            f"<span class='badge-open'>OPEN</span>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown("<br>", unsafe_allow_html=True)
+
+                        # Primary action to select scholarship for details & application redirect
+                        if st.button("Apply Now ➔", key=f"btn_{s['id']}", use_container_width=True, type="primary"):
+                            st.session_state["selected"] = s
+
+    # Handle Student Registration before Directing to External Site
     s = st.session_state.get("selected")
     if s and is_open(s):
         st.divider()
-        st.subheader(f"Record application attempt: {s['name']}")
+        st.markdown(f"### Complete Details to Apply: **{s['name']}**")
+
         with st.form("apply_form"):
-            name = st.text_input("Student Name *")
-            roll = st.text_input("Roll Number / Student ID *")
-            branch = st.text_input("Branch *")
-            mobile = st.text_input("Mobile Number *", max_chars=10)
+            col1, col2 = st.columns(2)
+            with col1:
+                name = st.text_input("Full Name *")
+                branch = st.text_input("Engineering Branch *")
+            with col2:
+                roll = st.text_input("Roll Number / Student ID *")
+                mobile = st.text_input("Mobile Number *", max_chars=10)
+
             consent = st.checkbox(
-                "I consent to recording these details for scholarship application tracking."
+                "I confirm that the details provided are accurate and consent to redirection to the official application page."
             )
-            submit = st.form_submit_button("Save Details & Continue", type="primary")
+            submit = st.form_submit_button("Proceed to Official Portal ➔", type="primary")
 
         if submit:
             errors = []
             if not name.strip():
                 errors.append("Student name is required.")
             if not roll.strip():
-                errors.append("Roll number / Student ID is required.")
+                errors.append("Roll number is required.")
             if not branch.strip():
                 errors.append("Branch is required.")
             if not valid_mobile(mobile):
@@ -264,17 +299,13 @@ if page == "Scholarships":
             if not consent:
                 errors.append("Consent is required.")
 
-            # Re-read from Neon immediately before saving, so a page left open
-            # overnight cannot create a new application for an expired scholarship.
             current = get_scholarship(s["id"])
             if not current or not is_open(current):
-                errors.append(
-                    "This scholarship has closed. The application link has been disabled."
-                )
+                errors.append("This scholarship deadline has expired.")
 
             if errors:
-                for e in errors:
-                    st.error(e)
+                for err in errors:
+                    st.error(err)
             else:
                 try:
                     record_application(name, roll, branch, mobile, int(s["id"]))
@@ -285,165 +316,107 @@ if page == "Scholarships":
                         "scholarship_name": current["name"],
                         "apply_url": current["apply_url"],
                     }
-                    st.success("Application attempt recorded.")
+                    st.success("Details saved successfully! Redirecting...")
                     st.link_button(
-                        "Continue to official scholarship website →",
+                        "Click Here if Not Automatically Redirected ➔",
                         current["apply_url"],
                         type="primary",
+                        use_container_width=True,
                     )
                     st.session_state.pop("selected", None)
                 except Exception as e:
-                    st.error(f"Unable to save details: {e}")
+                    st.error(f"Error saving application: {e}")
 
-# =============================================================
-# Student: confirmation
-# =============================================================
+# Page: My Application Confirmation
 elif page == "My Application":
-    st.subheader("Application Confirmation")
+    st.markdown("## Application Confirmation")
     data = st.session_state.get("last_application")
-    if not data:
-        st.info(
-            "This portal records the student's attempt to start an application. "
-            "It does not confirm that the external scholarship form was submitted."
-        )
-    else:
-        st.success("Application attempt recorded.")
-        st.write(f"**Student:** {data['student_name']}")
-        st.write(f"**Roll Number:** {data['roll_number']}")
-        st.write(f"**Branch:** {data['branch']}")
-        st.write(f"**Scholarship:** {data['scholarship_name']}")
-        current = get_scholarship_by_url = None
-        if st.button("Refresh scholarship status"):
-            st.rerun()
-        # Never keep an expired external link active in the confirmation page.
-        open_rows = get_scholarships()
-        open_match = next(
-            (x for x in open_rows if x["name"] == data["scholarship_name"]), None
-        )
-        if open_match:
-            st.link_button(
-                "Open Official Scholarship Website →",
-                open_match["apply_url"],
-                type="primary",
-            )
-        else:
-            st.warning("The scholarship deadline has passed; its application link is disabled.")
 
-# =============================================================
-# Admin
-# =============================================================
+    if not data:
+        st.info("No recent application attempts found in this session.")
+    else:
+        st.success("Application attempt tracked.")
+        st.markdown(
+            f"""
+            **Student Name:** {data['student_name']}  
+            **Roll Number:** {data['roll_number']}  
+            **Branch:** {data['branch']}  
+            **Scholarship Program:** {data['scholarship_name']}  
+            """
+        )
+        st.link_button(
+            "Go to Official Application Portal ➔",
+            data["apply_url"],
+            type="primary",
+        )
+
+# Page: Admin Dashboard
 else:
-    st.subheader("🔐 Admin Dashboard")
-    password = st.text_input("Admin Password", type="password")
+    st.markdown("## 🔐 Admin Dashboard")
+    password = st.text_input("Admin Access Password", type="password")
 
     if not ADMIN_PASSWORD:
         st.warning("Set ADMIN_PASSWORD in Streamlit Secrets.")
         st.stop()
     if password != ADMIN_PASSWORD:
-        st.info("Enter the admin password.")
+        st.info("Please enter the administrator password.")
         st.stop()
 
-    tab1, tab2, tab3 = st.tabs(["Scholarships", "Source Collector", "Applications"])
+    tab1, tab2 = st.tabs(["Manage Scholarships", "Application Logs"])
 
     with tab1:
-        all_rows = fetch_all(
-            """
-            SELECT id, name, eligibility, documents, deadline, apply_url,
-                   official_url, source_url, source_name, last_verified, active
-            FROM scholarships
-            ORDER BY deadline NULLS LAST, id
-            """
-        )
-        df = pd.DataFrame(all_rows)
-        if not df.empty:
-            st.dataframe(df, use_container_width=True, hide_index=True)
-
-        st.markdown("### Add scholarship")
-        with st.form("scholarship_editor"):
-            name = st.text_input("Scholarship name *")
-            eligibility = st.text_area("Eligibility in detail *")
-            documents = st.text_area("Required documents")
-            deadline = st.date_input("Last date to apply", value=today())
-            apply_url = st.text_input("Scholarship application link *")
-            official_url = st.text_input("Official information page")
-            source_url = st.text_input("Source webpage used for verification *")
-            source_name = st.text_input("Source name")
-            active = st.checkbox("Publish / make visible", value=True)
-            save = st.form_submit_button("Save Scholarship")
+        st.markdown("### Add New Scholarship Listing")
+        with st.form("add_scholarship_form"):
+            name = st.text_input("Scholarship Name *")
+            eligibility = st.text_area("Detailed Eligibility *")
+            documents = st.text_area("Required Documents *")
+            deadline = st.date_input("Deadline", value=today())
+            apply_url = st.text_input("Exact Direct Application URL *")
+            source_url = st.text_input("Official Announcement URL *")
+            source_name = st.text_input("Source Organization Name")
+            active = st.checkbox("Publish Listing Immediately", value=True)
+            save = st.form_submit_button("Publish Scholarship")
 
         if save:
-            if not name.strip() or not eligibility.strip() or not apply_url.strip() or not source_url.strip():
-                st.error("Name, eligibility, application link and source URL are required.")
+            if not name.strip() or not eligibility.strip() or not apply_url.strip():
+                st.error("Please fill in all mandatory fields.")
             else:
-                try:
-                    execute(
-                        """
-                        INSERT INTO scholarships
-                            (name, eligibility, documents, deadline, apply_url,
-                             official_url, source_url, source_name,
-                             last_verified, active, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-                        """,
-                        (
-                            name.strip(),
-                            eligibility.strip(),
-                            documents.strip(),
-                            deadline,
-                            apply_url.strip(),
-                            official_url.strip(),
-                            source_url.strip(),
-                            source_name.strip(),
-                            today(),
-                            active,
-                        ),
-                    )
-                    st.success(
-                        "Scholarship saved. It will stop appearing and its link will be disabled after the deadline."
-                    )
-                    st.rerun()
-                except Exception as e:
-                    st.error(str(e))
+                execute(
+                    """
+                    INSERT INTO scholarships
+                        (name, eligibility, documents, deadline, apply_url,
+                         official_url, source_url, source_name,
+                         last_verified, active, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    """,
+                    (
+                        name.strip(),
+                        eligibility.strip(),
+                        documents.strip(),
+                        deadline,
+                        apply_url.strip(),
+                        source_url.strip(),
+                        source_url.strip(),
+                        source_name.strip(),
+                        today(),
+                        active,
+                    ),
+                )
+                st.success("Scholarship published successfully.")
+                st.rerun()
 
     with tab2:
-        st.write(
-            "Enter an official scholarship webpage. The portal fetches the page so the admin can review it."
-        )
-        st.warning(
-            "Do not auto-publish scraped text. Eligibility and deadlines can change or be hidden in PDFs/JavaScript. Verify the official notice before publishing."
-        )
-        source = st.text_input("Official scholarship webpage URL")
-        if st.button("Fetch webpage"):
-            if not source.strip():
-                st.error("Enter a webpage URL.")
-            else:
-                try:
-                    final_url, text = collect_source_preview(source.strip())
-                    st.success(f"Fetched: {final_url}")
-                    st.text_area("Page text for verification", text, height=450)
-                except Exception as e:
-                    st.error(f"Unable to fetch page: {e}")
-
-    with tab3:
         apps = fetch_all(
             """
             SELECT a.id, a.student_name, a.roll_number, a.branch,
-                   a.mobile_number, a.scholarship_id,
-                   COALESCE(s.name, 'Unknown') AS scholarship,
-                   a.status, a.applied_at
+                   a.mobile_number, COALESCE(s.name, 'Unknown') AS scholarship,
+                   a.applied_at
             FROM scholarship_applications a
             LEFT JOIN scholarships s ON s.id = a.scholarship_id
             ORDER BY a.applied_at DESC
             """
         )
-        adf = pd.DataFrame(apps)
-        if adf.empty:
-            st.info("No application records yet.")
+        if apps:
+            st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
         else:
-            st.dataframe(adf, use_container_width=True, hide_index=True)
-            csv = adf.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "⬇️ Download CSV",
-                csv,
-                "scholarship_applications.csv",
-                "text/csv",
-            )
+            st.info("No student applications logged yet.")
