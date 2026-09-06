@@ -13,7 +13,7 @@ from psycopg.rows import dict_row
 # 1. Page Configuration
 st.set_page_config(
     page_title="Vignan's Institute of Engineerig for Women - Scholarship Portal",
-    page_icon="🎓",
+    page_icon="vignan_logo.png",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -190,7 +190,7 @@ def record_application(student_name, roll, branch, mobile, scholarship_id):
 st.markdown(
     """
     <div class="header-container">
-        <div class="header-title">🎓 Vignan's Institute of Engineering for Women - Students Scholarship Portal</div>
+        <div class="header-title">vignan_logo.png Vignan's Institute of Engineering for Women - Students Scholarship Portal</div>
         <div class="header-subtitle">Find verified scholarships, detailed eligibility, and direct application links in one place.</div>
     </div>
     """,
