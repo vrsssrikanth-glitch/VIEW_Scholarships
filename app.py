@@ -190,7 +190,7 @@ def record_application(student_name, roll, branch, mobile, scholarship_id):
 st.markdown(
     """
     <div class="header-container">
-        <div class="header-title">🎓 B.Tech Girl Students Scholarship Portal</div>
+        <div class="header-title">🎓 Vignan's Institute of Engineering for Women - Students Scholarship Portal</div>
         <div class="header-subtitle">Find verified scholarships, detailed eligibility, and direct application links in one place.</div>
     </div>
     """,
