@@ -12,7 +12,7 @@ from psycopg.rows import dict_row
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="B.Tech Girl Students Scholarship Portal",
+    page_title="Vignan's Institute of Engineerig for Women - Scholarship Portal",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="collapsed",
