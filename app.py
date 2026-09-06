@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import streamlit as st
+import streamlit.components.v1 as components
 import psycopg
 from psycopg.rows import dict_row
 
@@ -17,46 +18,38 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# 2. Custom CSS for UI Enhancement
+# 2. Custom CSS
 st.markdown(
     """
     <style>
-    /* Global Page Styling */
     .stApp {
         background-color: #F8FAFC;
     }
-    
-    /* Header Container */
     .header-container {
         background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
         padding: 2.5rem 2rem;
         border-radius: 16px;
         color: white;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
     .header-title {
-        font-size: 2.5rem;
+        font-size: 2.3rem;
         font-weight: 800;
         margin: 0;
-        letter-spacing: -0.025em;
     }
     .header-subtitle {
-        font-size: 1.1rem;
+        font-size: 1rem;
         opacity: 0.9;
         margin-top: 0.5rem;
     }
-
-    /* Metric Cards */
     .metric-card {
         background-color: #FFFFFF;
         border: 1px solid #E2E8F0;
         border-radius: 12px;
-        padding: 1rem 1.5rem;
+        padding: 0.8rem 1.2rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-
-    /* Card Badge */
     .badge-open {
         background-color: #DEF7EC;
         color: #03543F;
@@ -66,8 +59,6 @@ st.markdown(
         border-radius: 9999px;
         display: inline-block;
     }
-
-    /* Custom Form Styling */
     div[data-testid="stForm"] {
         background-color: #FFFFFF;
         border-radius: 12px;
@@ -218,59 +209,16 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # Page: Scholarships
 if page == "Scholarships":
-    rows = get_scholarships()
+    
+    # CASE 1: Student clicked "Apply Now" on a scholarship -> Show Form at Top
+    if "selected" in st.session_state and st.session_state["selected"]:
+        s = st.session_state["selected"]
+        
+        if st.button("← Back to All Scholarships"):
+            st.session_state.pop("selected", None)
+            st.rerun()
 
-    col_title, col_count = st.columns([4, 1])
-    with col_title:
-        st.markdown("## Available Opportunities")
-    with col_count:
-        st.markdown(
-            f"<div class='metric-card'><b>Active Programs:</b> {len(rows)}</div>",
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if not rows:
-        st.info("No open scholarships are currently available.")
-    else:
-        for s in rows:
-            if not is_open(s):
-                continue
-
-            d = parse_deadline(s.get("deadline"))
-            deadline_str = (
-                d.strftime("%d %b %Y") if d else "Official Notice"
-            )
-
-            with st.container():
-                with st.expander(f"✨ **{s['name']}** (Deadline: {deadline_str})", expanded=True):
-                    col_info, col_action = st.columns([3, 1])
-
-                    with col_info:
-                        st.markdown(f"**Eligibility:**\n{s.get('eligibility', 'N/A')}")
-                        st.markdown(f"**Required Documents:**\n{s.get('documents', 'N/A')}")
-                        st.caption(
-                            f"Verified Source: {s.get('source_name') or s.get('source_url', 'Official Website')} | "
-                            f"Last Verified: {s.get('last_verified', 'Recently')}"
-                        )
-
-                    with col_action:
-                        st.markdown(
-                            f"<span class='badge-open'>OPEN</span>",
-                            unsafe_allow_html=True,
-                        )
-                        st.markdown("<br>", unsafe_allow_html=True)
-
-                        # Primary action to select scholarship for details & application redirect
-                        if st.button("Apply Now ➔", key=f"btn_{s['id']}", use_container_width=True, type="primary"):
-                            st.session_state["selected"] = s
-
-    # Handle Student Registration before Directing to External Site
-    s = st.session_state.get("selected")
-    if s and is_open(s):
-        st.divider()
-        st.markdown(f"### Complete Details to Apply: **{s['name']}**")
+        st.markdown(f"## Complete Details to Apply: {s['name']}")
 
         with st.form("apply_form"):
             col1, col2 = st.columns(2)
@@ -316,16 +264,73 @@ if page == "Scholarships":
                         "scholarship_name": current["name"],
                         "apply_url": current["apply_url"],
                     }
-                    st.success("Details saved successfully! Redirecting...")
+                    st.success("Details saved! Redirecting to official application portal...")
+                    
+                    # Automatic direct navigation to exact target location URL
+                    components.html(
+                        f"""
+                        <script>
+                            window.open("{current['apply_url']}", "_blank");
+                        </script>
+                        """,
+                        height=0,
+                    )
+                    
                     st.link_button(
-                        "Click Here if Not Automatically Redirected ➔",
+                        "Click here if the page didn't open automatically ➔",
                         current["apply_url"],
                         type="primary",
-                        use_container_width=True,
                     )
-                    st.session_state.pop("selected", None)
                 except Exception as e:
                     st.error(f"Error saving application: {e}")
+
+    # CASE 2: Default view -> Show Scholarship List
+    else:
+        rows = get_scholarships()
+
+        col_title, col_count = st.columns([4, 1])
+        with col_title:
+            st.markdown("## Available Opportunities")
+        with col_count:
+            st.markdown(
+                f"<div class='metric-card'><b>Active Programs:</b> {len(rows)}</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        if not rows:
+            st.info("No open scholarships are currently available.")
+        else:
+            for s in rows:
+                if not is_open(s):
+                    continue
+
+                d = parse_deadline(s.get("deadline"))
+                deadline_str = d.strftime("%d %b %Y") if d else "Official Notice"
+
+                with st.container():
+                    with st.expander(f"✨ **{s['name']}** (Deadline: {deadline_str})", expanded=True):
+                        col_info, col_action = st.columns([3, 1])
+
+                        with col_info:
+                            st.markdown(f"**Eligibility:**\n{s.get('eligibility', 'N/A')}")
+                            st.markdown(f"**Required Documents:**\n{s.get('documents', 'N/A')}")
+                            st.caption(
+                                f"Verified Source: {s.get('source_name') or s.get('source_url', 'Official Website')} | "
+                                f"Last Verified: {s.get('last_verified', 'Recently')}"
+                            )
+
+                        with col_action:
+                            st.markdown(
+                                f"<span class='badge-open'>OPEN</span>",
+                                unsafe_allow_html=True,
+                            )
+                            st.markdown("<br>", unsafe_allow_html=True)
+
+                            if st.button("Apply Now ➔", key=f"btn_{s['id']}", use_container_width=True, type="primary"):
+                                st.session_state["selected"] = s
+                                st.rerun()
 
 # Page: My Application Confirmation
 elif page == "My Application":
