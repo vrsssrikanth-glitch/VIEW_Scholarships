@@ -286,6 +286,12 @@ if page == "Scholarships":
 
     # CASE 2: Default view -> Show Scholarship List
     else:
+        # Important Announcement Alert Box
+        st.warning(
+            "⚠️ **IMPORTANT NOTE:** Please wait to apply for NSP Scholarships until you get your original roll numbers (approximately up to September end)."
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+
         rows = get_scholarships()
 
         col_title, col_count = st.columns([4, 1])
