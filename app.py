@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 # 1. Page Configuration
 st.set_page_config(
     page_title="Vignan's Institute of Engineering for Women - Scholarship Portal",
-    page_icon="🎓",
+    page_icon="vignan_logo.png",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
