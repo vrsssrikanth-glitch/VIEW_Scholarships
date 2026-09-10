@@ -117,7 +117,7 @@ def is_already_applied(roll_number, scholarship_id):
 st.markdown(
     """
     <div class="header-container">
-        <img src="app/static/vignan_logo.png" class="header-logo" alt="Vignan Logo" onerror="this.style.display='none'">
+        <img src="vignan_logo.png" class="header-logo" alt="Vignan Logo" onerror="this.style.display='none'">
         <div>
             <div class="header-title">Vignan's Institute of Engineering for Women</div>
             <div class="header-subtitle">Students Scholarship Portal — One-time Login & Fast Applications</div>
