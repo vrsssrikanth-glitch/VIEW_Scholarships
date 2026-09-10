@@ -1,3 +1,4 @@
+import base64
 import os
 import re
 from datetime import date, datetime
@@ -5,67 +6,18 @@ from datetime import date, datetime
 import pandas as pd
 import psycopg
 from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
 import streamlit as st
 import streamlit.components.v1 as components
 
 # 1. Page Configuration
 st.set_page_config(
     page_title="Vignan's Institute of Engineering for Women - Scholarship Portal",
-    page_icon="vignan_logo.png",  # Ensures browser tab favicon uses vignan_logo.png
+    page_icon="🎓",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# 2. Adaptive CSS (Theme-Aware & High Performance)
-st.markdown(
-    """
-    <style>
-    .header-container {
-        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
-        padding: 2rem;
-        border-radius: 16px;
-        color: white;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-    }
-    .header-logo {
-        width: 75px;
-        height: auto;
-        border-radius: 8px;
-        background: white;
-        padding: 4px;
-    }
-    .header-title {
-        font-size: 2rem;
-        font-weight: 800;
-        margin: 0;
-        color: #FFFFFF;
-    }
-    .header-subtitle {
-        font-size: 0.95rem;
-        opacity: 0.9;
-        margin-top: 0.3rem;
-        color: #E0E7FF;
-    }
-    .badge-open {
-        background-color: #059669;
-        color: #FFFFFF;
-        font-weight: 600;
-        font-size: 0.75rem;
-        padding: 4px 12px;
-        border-radius: 9999px;
-        display: inline-block;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# 3. Connection Pooling for Fast SQL Operations
+# 2. Database Connection
 DATABASE_URL = st.secrets.get("DATABASE_URL", os.getenv("DATABASE_URL", ""))
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", os.getenv("ADMIN_PASSWORD", ""))
 
@@ -74,31 +26,101 @@ if not DATABASE_URL:
     st.stop()
 
 
-@st.cache_resource
-def get_db_pool():
-    """Maintains an active connection pool to eliminate reconnection delays."""
-    return ConnectionPool(DATABASE_URL, min_size=1, max_size=10, timeout=10)
+def get_conn():
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 
 def fetch_all(sql, params=()):
-    with get_db_pool().connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
             cur.execute(sql, params)
             return cur.fetchall()
 
 
 def fetch_one(sql, params=()):
-    with get_db_pool().connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
             cur.execute(sql, params)
             return cur.fetchone()
 
 
 def execute(sql, params=()):
-    with get_db_pool().connection() as conn:
+    with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, params)
         conn.commit()
+
+
+# 3. Helper function to encode image safely to Base64
+def get_base64_image(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode("utf-8")
+    return None
+
+
+logo_base64 = get_base64_image("vignan_logo.png")
+
+# CSS Styling (Supports Dark & Light mode)
+st.markdown(
+    """
+    <style>
+    .header-container {
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+        padding: 1.8rem 2rem;
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+    }
+    .header-logo {
+        width: 65px;
+        height: 65px;
+        object-fit: contain;
+        border-radius: 10px;
+        background: #FFFFFF;
+        padding: 5px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .header-title {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0;
+        color: #FFFFFF;
+        line-height: 1.2;
+    }
+    .header-subtitle {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin-top: 0.3rem;
+        color: #E0E7FF;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Render Custom Banner Header
+if logo_base64:
+    logo_html = f'<img src="data:image/png;base64,{logo_base64}" class="header-logo" alt="Vignan Logo">'
+else:
+    logo_html = '<div style="font-size: 2.5rem;">🎓</div>'
+
+st.markdown(
+    f"""
+    <div class="header-container">
+        {logo_html}
+        <div>
+            <div class="header-title">Vignan's Institute of Engineering for Women</div>
+            <div class="header-subtitle">Students Scholarship Portal — One-time Login & Fast Applications</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def valid_mobile(v):
@@ -113,21 +135,7 @@ def is_already_applied(roll_number, scholarship_id):
     return res is not None
 
 
-# 4. Header Banner with Custom Vignan Logo
-st.markdown(
-    """
-    <div class="header-container">
-        <img src="vignan_logo.png" class="header-logo" alt="Vignan Logo" onerror="this.style.display='none'">
-        <div>
-            <div class="header-title">Vignan's Institute of Engineering for Women</div>
-            <div class="header-subtitle">Students Scholarship Portal — One-time Login & Fast Applications</div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-# 5. Session Initialization
+# Session State Initialization
 if "student" not in st.session_state:
     st.session_state["student"] = None
 
@@ -150,10 +158,9 @@ with col_nav:
 
 st.divider()
 
-# PAGE 1: HOME & SCHOLARSHIP OPPORTUNITIES
+# PAGE 1: HOME & SCHOLARSHIPS
 if page == "Home & Opportunities":
 
-    # Step 1: Sign-in block for initial student registration
     if not st.session_state["student"]:
         st.subheader("🔑 Student Sign-In / Profile Setup")
         st.info("Provide your details once to view and instantly apply for scholarships.")
@@ -181,10 +188,9 @@ if page == "Home & Opportunities":
                     "branch": s_branch.strip(),
                     "mobile": s_mobile.strip(),
                 }
-                st.success("Details saved! Loading available opportunities...")
+                st.success("Details saved!")
                 st.rerun()
 
-    # Step 2: Show scholarships without requesting duplicate forms
     else:
         st.warning(
             "⚠️ **IMPORTANT NOTE:** Please wait to apply for NSP Scholarships until you get your original roll numbers (approximately up to late September)."
@@ -226,7 +232,7 @@ if page == "Home & Opportunities":
                                 """,
                                 (student["name"], student["roll"], student["branch"], student["mobile"], s["id"]),
                             )
-                            st.success("Recorded! Redirecting...")
+                            st.success("Recorded! Opening application link...")
                             components.html(f'<script>window.open("{s["apply_url"]}", "_blank");</script>', height=0)
                             st.rerun()
 
