@@ -86,7 +86,7 @@ st.markdown(
         box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
     .header-title {
-        font-size: 4rem;
+        font-size: 3rem;
         font-weight: 800;
         margin: 0;
         color: #FFFFFF;
