@@ -77,8 +77,8 @@ st.markdown(
         gap: 1.2rem;
     }
     .header-logo {
-        width: 75px;
-        height: 75px;
+        width: 100px;
+        height: 100px;
         object-fit: contain;
         border-radius: 0px;
         background: #4F46E5 0%, #7C3AED 100%;
