@@ -80,7 +80,7 @@ st.markdown(
         width: 100px;
         height: 100px;
         object-fit: contain;
-        border-radius: 0px;
+        border-radius: 10px;
         background: #4F46E5 0%, #7C3AED 100%;
         padding: 5px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.2);
