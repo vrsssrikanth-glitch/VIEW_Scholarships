@@ -268,25 +268,73 @@ elif page == "My Applications":
                         st.link_button("Revisit Official Portal ➔", item["apply_url"], use_container_width=True)
                     st.divider()
 
-# PAGE 3: ADMIN DASHBOARD
+# Page 3: Admin Dashboard
 else:
-    st.subheader("🔐 Admin Dashboard")
-    pwd = st.text_input("Enter Admin Password", type="password")
+    st.markdown("## 🔐 Admin Dashboard")
+    password = st.text_input("Admin Access Password", type="password")
 
-    if pwd == ADMIN_PASSWORD and ADMIN_PASSWORD != "":
-        st.success("Authenticated")
-        logs = fetch_all(
+    if not ADMIN_PASSWORD:
+        st.warning("Set ADMIN_PASSWORD in Streamlit Secrets.")
+        st.stop()
+    if password != ADMIN_PASSWORD:
+        st.info("Please enter the administrator password.")
+        st.stop()
+
+    tab1, tab2 = st.tabs(["Manage Scholarships", "Application Logs"])
+
+    with tab1:
+        st.markdown("### Add New Scholarship Listing")
+        with st.form("add_scholarship_form"):
+            name = st.text_input("Scholarship Name *")
+            eligibility = st.text_area("Detailed Eligibility *")
+            documents = st.text_area("Required Documents *")
+            deadline = st.date_input("Deadline", value=today())
+            apply_url = st.text_input("Exact Direct Application URL *")
+            source_url = st.text_input("Official Announcement URL *")
+            source_name = st.text_input("Source Organization Name")
+            active = st.checkbox("Publish Listing Immediately", value=True)
+            save = st.form_submit_button("Publish Scholarship")
+
+        if save:
+            if not name.strip() or not eligibility.strip() or not apply_url.strip():
+                st.error("Please fill in all mandatory fields.")
+            else:
+                execute(
+                    """
+                    INSERT INTO scholarships
+                        (name, eligibility, documents, deadline, apply_url,
+                         official_url, source_url, source_name,
+                         last_verified, active, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    """,
+                    (
+                        name.strip(),
+                        eligibility.strip(),
+                        documents.strip(),
+                        deadline,
+                        apply_url.strip(),
+                        source_url.strip(),
+                        source_url.strip(),
+                        source_name.strip(),
+                        today(),
+                        active,
+                    ),
+                )
+                st.success("Scholarship published successfully.")
+                st.rerun()
+
+    with tab2:
+        apps = fetch_all(
             """
-            SELECT a.id, a.student_name, a.roll_number, a.branch, a.mobile_number, 
-                   s.name as scholarship, a.applied_at
+            SELECT a.id, a.student_name, a.roll_number, a.branch,
+                   a.mobile_number, COALESCE(s.name, 'Unknown') AS scholarship,
+                   a.applied_at
             FROM scholarship_applications a
             LEFT JOIN scholarships s ON s.id = a.scholarship_id
             ORDER BY a.applied_at DESC
             """
         )
-        if logs:
-            st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
+        if apps:
+            st.dataframe(pd.DataFrame(apps), use_container_width=True, hide_index=True)
         else:
             st.info("No student applications logged yet.")
-    elif pwd:
-        st.error("Invalid password.")
