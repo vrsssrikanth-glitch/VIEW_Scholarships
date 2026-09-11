@@ -288,7 +288,7 @@ else:
             name = st.text_input("Scholarship Name *")
             eligibility = st.text_area("Detailed Eligibility *")
             documents = st.text_area("Required Documents *")
-            deadline = st.date_input("Deadline", value=today())
+            deadline = st.date_input("Deadline", value=date.today())
             apply_url = st.text_input("Exact Direct Application URL *")
             source_url = st.text_input("Official Announcement URL *")
             source_name = st.text_input("Source Organization Name")
@@ -316,7 +316,7 @@ else:
                         source_url.strip(),
                         source_url.strip(),
                         source_name.strip(),
-                        today(),
+                        date.today(),
                         active,
                     ),
                 )
