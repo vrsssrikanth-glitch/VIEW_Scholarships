@@ -193,7 +193,7 @@ if page == "Home & Opportunities":
 
     else:
         st.warning(
-            "⚠️ **IMPORTANT NOTE:** Please wait to apply for NSP Scholarships until you get your original roll numbers (approximately up to late September)."
+            "⚠️ **IMPORTANT NOTE:** Apply NSP Scholarship from 14th Oct 2026 onward till 31st Oct."
         )
 
         scholarships = fetch_all(
