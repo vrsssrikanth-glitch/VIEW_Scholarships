@@ -193,7 +193,7 @@ if page == "Home & Opportunities":
 
     else:
         st.warning(
-            "⚠️ **IMPORTANT NOTE:** Apply NSP Scholarship from 14th Oct 2026 onward till 31st Oct."
+            "⚠️ **IMPORTANT NOTE:** Apply NSP Scholarship from 14th Oct 2026 onwards, till 31st Oct 2026."
         )
 
         scholarships = fetch_all(
